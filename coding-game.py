@@ -38,7 +38,6 @@ class ActionForTurn:
 def castIsAvailable(paramActionId, inv_tab):
     returnValue = False
     neededSpell = checkForAvailableInv(paramActionId - (78 + witchPositionAdd), inv_tab)
-    # print("needed spell : " + str(neededSpell), file=sys.stderr, flush=True)
     for spell in casts:
         print("checking spell " + str(spell.id) + " is available  " + str(spell.usedSpell), file=sys.stderr, flush=True)
         if spell.id == paramActionId and not spell.usedSpell:
@@ -52,11 +51,15 @@ def castIsAvailable(paramActionId, inv_tab):
 
 
 def checkForAvailableInv(itemNeeded, invTab):
-    print("needed spell : " + str(itemNeeded), file=sys.stderr, flush=True)
-    if 0 >= invTab[itemNeeded - 1]:
-        return checkForAvailableInv(itemNeeded - 1, invTab)
-    else:
+    print("item needed : " + str(itemNeeded), file=sys.stderr, flush=True)
+    if (itemNeeded + 78 + witchPositionAdd) == (78 + witchPositionAdd):
         return itemNeeded + 78 + witchPositionAdd
+    else:
+        if 0 >= invTab[itemNeeded - 1]:
+            return checkForAvailableInv(itemNeeded - 1, invTab)
+        else:
+            return itemNeeded + 78 + witchPositionAdd
+
 
 
 def invalidateCastAfterTurn(castID):
@@ -71,10 +74,35 @@ def resetCasts():
         casts[i].usedSpell = False
 
 
+def findBestBrew():
+    if 2 > castedBrews:
+        return brews[0]
+    else:
+        return findFastestBrew()
+
+
+def findFastestBrew():
+    lowestPrice = 1000
+    currentSelectedBrew = brews[0]
+    for singleBrew in brews:
+        if lowestPrice > singleBrew.prices:
+            lowestPrice = singleBrew.prices
+            currentSelectedBrew = singleBrew
+    return currentSelectedBrew
+
+def findBrewList():
+    brewListIds = ""
+    for brew in brews:
+        brewListIds  = brewListIds + str(brew.id) + ", "
+    print(brewListIds, file=sys.stderr, flush=True)
+
+
 casts = []
+brews = []
+castedBrews = 0
 while True:
     action_count = int(input())  # the number of spells and recipes in play
-    brews = []
+    brews.clear()
     for i in range(action_count):
         # action_id: the unique ID of this spell or recipe
         # action_type: in the first league: BREW; later: CAST, OPPONENT_CAST, LEARN, BREW
@@ -99,18 +127,21 @@ while True:
         castable = castable != "0"
         repeatable = repeatable != "0"
         # Setup spell list and brew list
+        # brews.clear()
         currentInventoryChanges = InventoryChanges(delta_0, delta_1, delta_2, delta_3)
         if action_type == "BREW":
             brews.append(Brew(currentInventoryChanges, action_id, price))
         if action_type == "CAST" and len(casts) <= 3:
             casts.append(Cast(currentInventoryChanges, action_id))
 
-    selectedBrew = brews[0]
+
     actionForTurn = ActionForTurn("REST", 0)
     witchPositionAdd = 0 if int(casts[0].id) == 78 else 4
     # print(actionForTurn.id, file=sys.stderr, flush=True)
     # print("test " + ' '.join(map(str, brews)), file=sys.stderr, flush=True)
     for i in range(2):
+        findBrewList()
+        selectedBrew = findBestBrew()
         # inv_0: tier-0 ingredients in inventory
         # score: amount of rupees
         inv_0, inv_1, inv_2, inv_3, score = [int(j) for j in input().split()]
@@ -120,23 +151,23 @@ while True:
             highest_price = 0
             canCraft = True
 
-            if inv_0 + inv_1 + inv_2 + inv_3 >= 8:
-                casts[0].usedSpell = True
-            if not casts[0].usedSpell:
-                actionForTurn.action = "CAST "
-                actionForTurn.id = 78 + witchPositionAdd
-                canCraft = False
-            else:
+            # if inv_0 + inv_1 + inv_2 + inv_3 >= 8:
+            #     casts[0].usedSpell = True
+            # if not casts[0].usedSpell:
+            #     actionForTurn.action = "CAST "
+            #     actionForTurn.id = 78 + witchPositionAdd
+            #     canCraft = False
+            # else:
                 # step 2 : transform while usefull until we cant anymore
-                for ingredient in range(4):
-                    if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
-                        castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
-                        print("cast response " + str(castAnswer), file=sys.stderr, flush=True)
-                        if castAnswer[0]:
-                            actionForTurn.action = "CAST "
-                            actionForTurn.id = str(castAnswer[1])
-                        else:
-                            actionForTurn.action = "REST"
+            for ingredient in range(4):
+                if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
+                    castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
+                    print("cast response " + str(castAnswer), file=sys.stderr, flush=True)
+                    if castAnswer[0]:
+                        actionForTurn.action = "CAST "
+                        actionForTurn.id = str(castAnswer[1])
+                    else:
+                        actionForTurn.action = "REST"
 
             for ingredient in range(4):
                 if canCraft:
@@ -148,14 +179,18 @@ while True:
                 actionForTurn.id = selectedBrew.id
     # Write an action using print
     print("Debug messages...", file=sys.stderr, flush=True)
-    # print(selectedBrew[2] + " " + str(selectedBrew[1]))
+    if actionForTurn.action == "REST":
+        actionForTurn.id = 0
     printID = str(actionForTurn.id) if actionForTurn.id != 0 else ""
-    print(actionForTurn.action + str(printID))
+
+    print(actionForTurn.action + str(printID) + " targetting " + str(selectedBrew.id))
 
     if actionForTurn.action == "CAST ":
         invalidateCastAfterTurn(actionForTurn.id)
     elif actionForTurn.action == "REST":
         resetCasts()
+    elif actionForTurn.action == "BREW ":
+        castedBrews = castedBrews + 1
     # print("Spell List 78 :" + str(casts[0].usedSpell), file=sys.stderr, flush=True)
     # print("Spell List 79 :" + str(casts[1].usedSpell), file=sys.stderr, flush=True)
     # print("Spell List 80 :" + str(casts[2].usedSpell), file=sys.stderr, flush=True)
