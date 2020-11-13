@@ -151,14 +151,6 @@ while True:
             highest_price = 0
             canCraft = True
 
-            # if inv_0 + inv_1 + inv_2 + inv_3 >= 8:
-            #     casts[0].usedSpell = True
-            # if not casts[0].usedSpell:
-            #     actionForTurn.action = "CAST "
-            #     actionForTurn.id = 78 + witchPositionAdd
-            #     canCraft = False
-            # else:
-                # step 2 : transform while usefull until we cant anymore
             for ingredient in range(4):
                 if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
                     castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
