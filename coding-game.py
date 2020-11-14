@@ -97,6 +97,7 @@ def findBrewList():
     print(brewListIds, file=sys.stderr, flush=True)
 
 
+
 casts = []
 brews = []
 castedBrews = 0
@@ -151,15 +152,27 @@ while True:
             highest_price = 0
             canCraft = True
 
-            for ingredient in range(4):
-                if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
-                    castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
-                    print("cast response " + str(castAnswer), file=sys.stderr, flush=True)
-                    if castAnswer[0]:
-                        actionForTurn.action = "CAST "
-                        actionForTurn.id = str(castAnswer[1])
-                    else:
-                        actionForTurn.action = "REST"
+            # if inv_0 + inv_1 + inv_2 + inv_3 >= 8:
+            #     casts[0].usedSpell = True
+            # if not casts[0].usedSpell:
+            #     actionForTurn.action = "CAST "
+            #     actionForTurn.id = 78 + witchPositionAdd
+            #     canCraft = False
+            # else:
+                # step 2 : transform while usefull until we cant anymore
+            if 1 >= inv_0 and not casts[0].usedSpell:
+                actionForTurn.action = "CAST "
+                actionForTurn.id = str(78 + witchPositionAdd)
+            else:
+                for ingredient in range(4):
+                    if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
+                        castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
+                        print("cast response " + str(castAnswer), file=sys.stderr, flush=True)
+                        if castAnswer[0]:
+                            actionForTurn.action = "CAST "
+                            actionForTurn.id = str(castAnswer[1])
+                        else:
+                            actionForTurn.action = "REST"
 
             for ingredient in range(4):
                 if canCraft:
