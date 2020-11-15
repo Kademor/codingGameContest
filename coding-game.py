@@ -2,22 +2,31 @@ import sys
 import math
 
 
-# Auto-generated code below aims at helping you parse
-# the standard input according to the problem statement.
-
-# game loop
-class Brew:
-    def __init__(self, inventoryChanges, id, prices):
-        self.inventoryChanges = inventoryChanges
+class StandardAction:
+    def __init__(self, action, id, inventoryChanges):
+        self.action = action
         self.id = id
+        self.inventoryChanges = inventoryChanges
+
+
+class Brew(StandardAction):
+    def __init__(self, action, id, inventoryChanges, prices):
+        super().__init__(action, id, inventoryChanges)
         self.prices = prices
 
 
-class Cast:
-    def __init__(self, inventoryChanges, id):
-        self.inventoryChanges = inventoryChanges
-        self.id = id
-        self.usedSpell = False
+class Cast(StandardAction):
+    def __init__(self, action, id, inventoryChanges, castable):
+        super().__init__(action, id, inventoryChanges)
+        self.castable = castable
+
+
+class TomePage(StandardAction):
+    def __init__(self, action,id, inventoryChanges, taxCount, tomeIndex, repeatable):
+        super().__init__(action, id, inventoryChanges)
+        self.taxCount = taxCount
+        self.tomeIndex = tomeIndex
+        self.repeatable = repeatable
 
 
 class InventoryChanges:
@@ -36,22 +45,11 @@ class ActionForTurn:
 
 
 def castIsAvailable(paramActionId, inv_tab):
-    returnValue = False
     neededSpell = checkForAvailableInv(paramActionId - (78 + witchPositionAdd), inv_tab)
-    for spell in casts:
-        print("checking spell " + str(spell.id) + " is available  " + str(spell.usedSpell), file=sys.stderr, flush=True)
-        if spell.id == paramActionId and not spell.usedSpell:
-            returnValue = True
-
-    if casts[neededSpell - (78 + witchPositionAdd)].usedSpell:
-        print("went in return value condition", file=sys.stderr, flush=True)
-        returnValue = False
-
-    return [returnValue, neededSpell]
+    return [casts[(neededSpell - (78 + witchPositionAdd))].castable, neededSpell]
 
 
 def checkForAvailableInv(itemNeeded, invTab):
-    print("item needed : " + str(itemNeeded), file=sys.stderr, flush=True)
     if (itemNeeded + 78 + witchPositionAdd) == (78 + witchPositionAdd):
         return itemNeeded + 78 + witchPositionAdd
     else:
@@ -59,19 +57,6 @@ def checkForAvailableInv(itemNeeded, invTab):
             return checkForAvailableInv(itemNeeded - 1, invTab)
         else:
             return itemNeeded + 78 + witchPositionAdd
-
-
-
-def invalidateCastAfterTurn(castID):
-    for i in range(4):
-        # print(" current id " + str(casts[i].id) + "current cast it " + str(castID) + "equivalence " + str(str(casts[i].id) == str(castID)), file=sys.stderr, flush=True)
-        if str(casts[i].id) == str(castID):
-            casts[i].usedSpell = True
-
-
-def resetCasts():
-    for i in range(4):
-        casts[i].usedSpell = False
 
 
 def findBestBrew():
@@ -90,20 +75,23 @@ def findFastestBrew():
             currentSelectedBrew = singleBrew
     return currentSelectedBrew
 
+
 def findBrewList():
     brewListIds = ""
     for brew in brews:
-        brewListIds  = brewListIds + str(brew.id) + ", "
+        brewListIds = brewListIds + str(brew.id) + ", "
     print(brewListIds, file=sys.stderr, flush=True)
-
 
 
 casts = []
 brews = []
+tome = []
 castedBrews = 0
 while True:
     action_count = int(input())  # the number of spells and recipes in play
     brews.clear()
+    casts.clear()
+    tome.clear()
     for i in range(action_count):
         # action_id: the unique ID of this spell or recipe
         # action_type: in the first league: BREW; later: CAST, OPPONENT_CAST, LEARN, BREW
@@ -131,10 +119,11 @@ while True:
         # brews.clear()
         currentInventoryChanges = InventoryChanges(delta_0, delta_1, delta_2, delta_3)
         if action_type == "BREW":
-            brews.append(Brew(currentInventoryChanges, action_id, price))
-        if action_type == "CAST" and len(casts) <= 3:
-            casts.append(Cast(currentInventoryChanges, action_id))
-
+            brews.append(Brew(action_type, action_id, currentInventoryChanges, price))
+        if action_type == "CAST":
+            casts.append(Cast(action_type, action_id, currentInventoryChanges, castable))
+        if action_type == "LEARN":
+            tome.append(TomePage(action_type, action_id, currentInventoryChanges, tax_count, tome_index, repeatable))
 
     actionForTurn = ActionForTurn("REST", 0)
     witchPositionAdd = 0 if int(casts[0].id) == 78 else 4
@@ -148,19 +137,10 @@ while True:
         inv_0, inv_1, inv_2, inv_3, score = [int(j) for j in input().split()]
         tab_inv = [inv_0, inv_1, inv_2, inv_3]
         if i == 0:
-            print("inventory before can craft :  " + ''.join(str(e) for e in tab_inv), file=sys.stderr, flush=True)
             highest_price = 0
             canCraft = True
 
-            # if inv_0 + inv_1 + inv_2 + inv_3 >= 8:
-            #     casts[0].usedSpell = True
-            # if not casts[0].usedSpell:
-            #     actionForTurn.action = "CAST "
-            #     actionForTurn.id = 78 + witchPositionAdd
-            #     canCraft = False
-            # else:
-                # step 2 : transform while usefull until we cant anymore
-            if 1 >= inv_0 and not casts[0].usedSpell:
+            if 1 >= inv_0 and casts[0].castable:
                 actionForTurn.action = "CAST "
                 actionForTurn.id = str(78 + witchPositionAdd)
             else:
@@ -190,15 +170,10 @@ while True:
 
     print(actionForTurn.action + str(printID) + " targetting " + str(selectedBrew.id))
 
-    if actionForTurn.action == "CAST ":
-        invalidateCastAfterTurn(actionForTurn.id)
-    elif actionForTurn.action == "REST":
-        resetCasts()
-    elif actionForTurn.action == "BREW ":
-        castedBrews = castedBrews + 1
-    # print("Spell List 78 :" + str(casts[0].usedSpell), file=sys.stderr, flush=True)
-    # print("Spell List 79 :" + str(casts[1].usedSpell), file=sys.stderr, flush=True)
-    # print("Spell List 80 :" + str(casts[2].usedSpell), file=sys.stderr, flush=True)
-    # print("Spell List 81 :" + str(casts[3].usedSpell), file=sys.stderr, flush=True)
+    castedBrews = castedBrews + 1
+    # print("Spell List 78 :" + str(casts[0].castable), file=sys.stderr, flush=True)
+    # print("Spell List 79 :" + str(casts[1].castable), file=sys.stderr, flush=True)
+    # print("Spell List 80 :" + str(casts[2].castable), file=sys.stderr, flush=True)
+    # print("Spell List 81 :" + str(casts[3].castable), file=sys.stderr, flush=True)
 
     # in the first league: BREW <id> | WAIT; later: BREW <id> | CAST <id> [<times>] | LEARN <id> | REST | WAIT
