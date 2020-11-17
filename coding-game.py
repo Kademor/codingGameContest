@@ -1,5 +1,4 @@
 import sys
-import math
 
 
 class StandardAction:
@@ -43,31 +42,6 @@ class ActionForTurn:
         self.action = action
         self.id = id
 
-
-def castIsAvailable(paramActionId, inv_tab):
-    neededSpell = checkForAvailableInv(paramActionId - (78 + witchPositionAdd), inv_tab)
-    return [casts[(neededSpell - (78 + witchPositionAdd))].castable, neededSpell]
-
-
-def checkForAvailableInv(itemNeeded, invTab):
-    if (itemNeeded + 78 + witchPositionAdd) == (78 + witchPositionAdd):
-        return itemNeeded + 78 + witchPositionAdd
-    else:
-        if 0 >= invTab[itemNeeded - 1]:
-            return checkForAvailableInv(itemNeeded - 1, invTab)
-        else:
-            return itemNeeded + 78 + witchPositionAdd
-
-
-def findBestSpell(potion, inventory):
-    # Make a new tab that gets what we miss for the recepie
-    bestSpell = needsForCraft(inventory, bestSpell)
-    if not bestSpell.castable:
-        return ActionForTurn("REST", -1)
-    else:
-        return ActionForTurn("CAST ", str(bestSpell.id))
-
-
 # Recursive check to find what spells needs
 def needsForCraft(invTab):
     whiteListedSpells = casts.copy()
@@ -93,22 +67,20 @@ def needsForCraft(invTab):
                 foundBestSpell = spell
 
         # Check if we can fill the items in the inventory
+        needsMoreIngredients = False
         needsMoreSpace = False
         count = 0
         countInv = 0
         for i in range(4):
             count = count + foundBestSpell.inventoryChanges.tabIngredients[i]
             countInv = countInv + invTab[i]
-
-        if countInv + count >= 10:
-            needsMoreSpace = True
-
-        needsMoreIngredients = False
-        # Check if we have the ingredients for the spell
-        for i in range(4):
+            # Check if we have the ingredients for the spell
             itemCheck = invTab[i] + foundBestSpell.inventoryChanges.tabIngredients[i]
             if -1 >= itemCheck:
                 needsMoreIngredients = True
+
+        if countInv + count >= 10:
+            needsMoreSpace = True
 
         spellIsExhausted = not foundBestSpell.castable
         #Check if the spell is exhausted
@@ -121,22 +93,7 @@ def needsForCraft(invTab):
             needsMoreSpace = False
             needsMoreIngredients = False
             spellIsExhausted = False
-
     return foundBestSpell
-
-
-def findFaultyIngredient(invTab, bestSpell):
-    # print("Went here with spell " + str(bestSpell.id), file=sys.stderr, flush=True)
-    ingredient = -1
-    amountMissing = 0
-    for i in range(3, -1, -1):
-        if -1 >= (invTab[i] + bestSpell.inventoryChanges.tabIngredients[i]):
-            if ingredient == -1:
-                ingredient = i
-                amountMissing = invTab[i] + bestSpell.inventoryChanges.tabIngredients[i]
-                # print("Faulty ingredient is " + str(i), file=sys.stderr, flush=True)
-                # print("amount missing is " + str(invTab[i] + bestSpell.inventoryChanges.tabIngredients[i] ), file=sys.stderr, flush=True)
-    return [ingredient, amountMissing]
 
 
 def findBestBrew():
@@ -200,29 +157,10 @@ def findSpellForPotion(potion):
 
 def returnUsefullness(id, potion, spell, inventory):
     usefullness = 0
-    # print(spell, file=sys.stderr, flush=True)
     for i in range(4):
-        if i == 0 and 0 > potion[i]:
-            usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
-            # usefullness = usefullness - (((spell[i] + inventory[i]) * 0.5) if potion[i] != 0 else 0)
-        if i == 1 and 0 > potion[i]:
-            usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
-            # usefullness = usefullness - (((spell[i] + inventory[i]) * 1) if potion[i] != 0 else 0)
-        if i == 2 and 0 > potion[i]:
-            usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
-            # usefullness = usefullness - (((spell[i] + inventory[i]) * 1.5) if potion[i] != 0 else 0)
-        if i == 3 and 0 > potion[i]:
-            usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
-            # usefullness = usefullness - (((spell[i] + inventory[i]) * 2) if potion[i] != 0 else 0)
+        usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
     print("Id : " + str(id) + " spell " + str(spell) + " is " + str(usefullness), file=sys.stderr, flush=True)
     return usefullness
-
-
-def findBrewList():
-    brewListIds = ""
-    for brew in brews:
-        brewListIds = brewListIds + str(brew.id) + ", "
-    print(brewListIds, file=sys.stderr, flush=True)
 
 
 selectedBrew = ""
@@ -231,7 +169,7 @@ brews = []
 tome = []
 castedBrews = 0
 currentTurn = 0
-justCastedBrew= False
+justCastedBrew = False
 while True:
     action_count = int(input())  # the number of spells and recipes in play
     brews.clear()
@@ -260,25 +198,21 @@ while True:
 
     actionForTurn = ActionForTurn("REST", -1)
     witchPositionAdd = 0 if int(casts[0].id) == 78 else 4
-    # print(actionForTurn.id, file=sys.stderr, flush=True)
-    # print("test " + ' '.join(map(str, brews)), file=sys.stderr, flush=True)
     for i in range(2):
-        findBrewList()
         selectedBrew = findBestBrew()
         inv_0, inv_1, inv_2, inv_3, score = [int(j) for j in input().split()]
         tab_inv = [inv_0, inv_1, inv_2, inv_3]
 
         if i == 0:
-            if 19 > len(casts):
+            if 18 > len(casts):
                 actionForTurn.action = "LEARN "
                 actionForTurn.id = tome[0].id
-            # elif justCastedBrew:
-            #     actionForTurn.action = "REST"
-            #     actionForTurn.id = -1
-            #     justCastedBrew = False
+            elif justCastedBrew:
+                actionForTurn.action = "REST"
+                actionForTurn.id = -1
+                justCastedBrew = False
             else:
                 actionForTurn = needsForCraft(tab_inv)
-
             # canCraft = True
             # for ingredient in range(4):
             #     if canCraft:
@@ -300,10 +234,10 @@ while True:
             # END section to check if we can craft the potion
     # Write an action using print
     print("Debug messages...", file=sys.stderr, flush=True)
-    if actionForTurn.action == "REST":
-        actionForTurn.id = -1
-    if int(actionForTurn.id) == -1:
+    if actionForTurn.action == "REST" or int(actionForTurn.id) == -1:
         actionForTurn.action = "REST"
+        actionForTurn.id = -1
+
     printID = str(actionForTurn.id) if int(actionForTurn.id) != -1 else ""
     if actionForTurn.action == "BREW ":
         castedBrews = castedBrews + 1
