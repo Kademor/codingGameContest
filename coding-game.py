@@ -1,4 +1,5 @@
 import sys
+import math
 
 
 class StandardAction:
@@ -21,7 +22,7 @@ class Cast(StandardAction):
 
 
 class TomePage(StandardAction):
-    def __init__(self, action, id, inventoryChanges, taxCount, tomeIndex, repeatable):
+    def __init__(self, action,id, inventoryChanges, taxCount, tomeIndex, repeatable):
         super().__init__(action, id, inventoryChanges)
         self.taxCount = taxCount
         self.tomeIndex = tomeIndex
@@ -42,73 +43,27 @@ class ActionForTurn:
         self.action = action
         self.id = id
 
-# Recursive check to find what spells needs
-def needsForCraft(invTab):
-    whiteListedSpells = casts.copy()
-    needsMoreSpace = True
-    needsMoreIngredients = True
-    spellIsExhausted = True
-    foundBestSpell = casts[0]
-    # Spell enter debug
-    while (needsMoreIngredients or needsMoreSpace or spellIsExhausted):
-        foundBestSpell = casts[0]
-        # Make an empty tab for faulty ingredient
-        # Combine Inventory and potion to get what we are missing
-        combinedPotionAndInv = []
-        for i in range(4):
-            combinedPotionAndInv.append(invTab[i] + selectedBrew.inventoryChanges.tabIngredients[i])
 
-        bestUsefulness = -20
-        for spell in whiteListedSpells:
-            currentUsefullness = returnUsefullness(spell.id, combinedPotionAndInv,
-                                                   spell.inventoryChanges.tabIngredients, invTab)
-            if currentUsefullness > bestUsefulness:
-                bestUsefulness = currentUsefullness
-                foundBestSpell = spell
+def castIsAvailable(paramActionId, inv_tab):
+    neededSpell = checkForAvailableInv(paramActionId - (78 + witchPositionAdd), inv_tab)
+    return [casts[(neededSpell - (78 + witchPositionAdd))].castable, neededSpell]
 
-        # Check if we can fill the items in the inventory
-        needsMoreIngredients = False
-        needsMoreSpace = False
-        count = 0
-        countInv = 0
-        for i in range(4):
-            count = count + foundBestSpell.inventoryChanges.tabIngredients[i]
-            countInv = countInv + invTab[i]
-            # Check if we have the ingredients for the spell
-            itemCheck = invTab[i] + foundBestSpell.inventoryChanges.tabIngredients[i]
-            if -1 >= itemCheck:
-                needsMoreIngredients = True
 
-        if countInv + count >= 10:
-            needsMoreSpace = True
-
-        spellIsExhausted = not foundBestSpell.castable
-        #Check if the spell is exhausted
-        print("Needs more space" + str(needsMoreSpace), file=sys.stderr, flush=True)
-        print("Need more ingredients " + str(needsMoreIngredients), file=sys.stderr, flush=True)
-        whiteListedSpells.remove(foundBestSpell)
-        if len(whiteListedSpells) == 0:
-            foundBestSpell.action = "REST"
-            foundBestSpell.id = "-1"
-            needsMoreSpace = False
-            needsMoreIngredients = False
-            spellIsExhausted = False
-    return foundBestSpell
+def checkForAvailableInv(itemNeeded, invTab):
+    if (itemNeeded + 78 + witchPositionAdd) == (78 + witchPositionAdd):
+        return itemNeeded + 78 + witchPositionAdd
+    else:
+        if 0 >= invTab[itemNeeded - 1]:
+            return checkForAvailableInv(itemNeeded - 1, invTab)
+        else:
+            return itemNeeded + 78 + witchPositionAdd
 
 
 def findBestBrew():
-    # return brews[0]
-    print("Casted brews = " + str(castedBrews > 2), file=sys.stderr, flush=True)
-    # if not castedBrews >= 3:
-    #     return brews[0]
-    # else:
-    return findFastestBrew()
-    # return findHighestBrew()
-    # return findFastestBrew()
-    # if 2 > castedBrews:
-    #     return brews[0]
-    # else:
-    #     return findFastestBrew(
+    if 2 > castedBrews:
+        return brews[0]
+    else:
+        return findFastestBrew()
 
 
 def findFastestBrew():
@@ -121,61 +76,33 @@ def findFastestBrew():
     return currentSelectedBrew
 
 
-def findHighestBrew():
-    highestPrice = 0
-    currentSelectedBrew = brews[0]
-    for singleBrew in brews:
-        if singleBrew.prices > highestPrice:
-            highestPrice = singleBrew.prices
-            currentSelectedBrew = singleBrew
-    return currentSelectedBrew
+def findBrewList():
+    brewListIds = ""
+    for brew in brews:
+        brewListIds = brewListIds + str(brew.id) + ", "
+    print(brewListIds, file=sys.stderr, flush=True)
 
 
-def findSpellForPotion(potion):
-    savedPotionId = 0
-    bestUsefullness = -20
-    currentBestLearned = True
-    spellPosition = 0
-    # Find best usefulnness in already learned spells
-    for spell in casts:
-        currentUsefullness = returnUsefullness(potion.inventoryChanges.tabIngredients,
-                                               spell.inventoryChanges.tabIngredients)
-        if currentUsefullness > bestUsefullness:
-            bestUsefullness = currentUsefullness
-    # Check tome spells
-    for spell in tome:
-        currentUsefullness = returnUsefullness(potion.inventoryChanges.tabIngredients,
-                                               spell.inventoryChanges.tabIngredients)
-        if currentUsefullness > bestUsefullness:
-            bestUsefullness = currentUsefullness
-            savedPotionId = spell.id
-            currentBestLearned = False
-        spellPosition = spellPosition + 1
-
-    return [currentBestLearned, savedPotionId, spellPosition]
-
-
-def returnUsefullness(id, potion, spell, inventory):
-    usefullness = 0
-    for i in range(4):
-        usefullness = usefullness + (((potion[i] + spell[i])) if potion[i] != 0 else 0)
-    print("Id : " + str(id) + " spell " + str(spell) + " is " + str(usefullness), file=sys.stderr, flush=True)
-    return usefullness
-
-
-selectedBrew = ""
 casts = []
 brews = []
 tome = []
 castedBrews = 0
-currentTurn = 0
-justCastedBrew = False
 while True:
     action_count = int(input())  # the number of spells and recipes in play
     brews.clear()
     casts.clear()
     tome.clear()
     for i in range(action_count):
+        # action_id: the unique ID of this spell or recipe
+        # action_type: in the first league: BREW; later: CAST, OPPONENT_CAST, LEARN, BREW
+        # delta_0: tier-0 ingredient change
+        # delta_1: tier-1 ingredient change
+        # delta_2: tier-2 ingredient change
+        # delta_3: tier-3 ingredient change
+        # price: the price in rupees if this is a potion
+        # tome_index: in the first two leagues: always 0; later: the index in the tome if this is a tome spell, equal to the read-ahead tax
+        # tax_count: in the first two leagues: always 0; later: the amount of taxed tier-0 ingredients you gain from learning this spell
+        # castable: in the first league: always 0; later: 1 if this is a castable player spell
         # repeatable: for the first two leagues: always 0; later: 1 if this is a repeatable player spell
         action_id, action_type, delta_0, delta_1, delta_2, delta_3, price, tome_index, tax_count, castable, repeatable = input().split()
         action_id = int(action_id)
@@ -188,59 +115,65 @@ while True:
         tax_count = int(tax_count)
         castable = castable != "0"
         repeatable = repeatable != "0"
+        # Setup spell list and brew list
+        # brews.clear()
         currentInventoryChanges = InventoryChanges(delta_0, delta_1, delta_2, delta_3)
         if action_type == "BREW":
             brews.append(Brew(action_type, action_id, currentInventoryChanges, price))
         if action_type == "CAST":
-            casts.append(Cast(action_type + " ", action_id, currentInventoryChanges, castable))
+            casts.append(Cast(action_type, action_id, currentInventoryChanges, castable))
         if action_type == "LEARN":
             tome.append(TomePage(action_type, action_id, currentInventoryChanges, tax_count, tome_index, repeatable))
 
-    actionForTurn = ActionForTurn("REST", -1)
+    actionForTurn = ActionForTurn("REST", 0)
     witchPositionAdd = 0 if int(casts[0].id) == 78 else 4
+    # print(actionForTurn.id, file=sys.stderr, flush=True)
+    # print("test " + ' '.join(map(str, brews)), file=sys.stderr, flush=True)
     for i in range(2):
+        findBrewList()
         selectedBrew = findBestBrew()
+        # inv_0: tier-0 ingredients in inventory
+        # score: amount of rupees
         inv_0, inv_1, inv_2, inv_3, score = [int(j) for j in input().split()]
         tab_inv = [inv_0, inv_1, inv_2, inv_3]
-
         if i == 0:
-            if 18 > len(casts):
-                actionForTurn.action = "LEARN "
-                actionForTurn.id = tome[0].id
-            elif justCastedBrew:
-                actionForTurn.action = "REST"
-                actionForTurn.id = -1
-                justCastedBrew = False
+            highest_price = 0
+            canCraft = True
+
+            if 1 >= inv_0 and casts[0].castable:
+                actionForTurn.action = "CAST "
+                actionForTurn.id = str(78 + witchPositionAdd)
             else:
-                actionForTurn = needsForCraft(tab_inv)
-            # canCraft = True
-            # for ingredient in range(4):
-            #     if canCraft:
-            #         canCraft = (int(tab_inv[ingredient]) + int(
-            #             selectedBrew.inventoryChanges.tabIngredients[ingredient])) >= 0
-            canCraft = False
-            for brew in brews:
-                testingBrews = True
                 for ingredient in range(4):
-                    if testingBrews:
-                        testingBrews = (int(tab_inv[ingredient]) + int(
-                            brew.inventoryChanges.tabIngredients[ingredient])) >= 0
-                if testingBrews:
-                    selectedBrew = brew
-                    canCraft = True
+                    if (tab_inv[ingredient] + selectedBrew.inventoryChanges.tabIngredients[ingredient]) <= -1:
+                        castAnswer = castIsAvailable(78 + witchPositionAdd + ingredient, tab_inv)
+                        print("cast response " + str(castAnswer), file=sys.stderr, flush=True)
+                        if castAnswer[0]:
+                            actionForTurn.action = "CAST "
+                            actionForTurn.id = str(castAnswer[1])
+                        else:
+                            actionForTurn.action = "REST"
+
+            for ingredient in range(4):
+                if canCraft:
+                    canCraft = (int(tab_inv[ingredient]) + int(
+                        selectedBrew.inventoryChanges.tabIngredients[ingredient])) >= 0
+
             if canCraft:
                 actionForTurn.action = "BREW "
                 actionForTurn.id = selectedBrew.id
-            # END section to check if we can craft the potion
     # Write an action using print
     print("Debug messages...", file=sys.stderr, flush=True)
-    if actionForTurn.action == "REST" or int(actionForTurn.id) == -1:
-        actionForTurn.action = "REST"
-        actionForTurn.id = -1
+    if actionForTurn.action == "REST":
+        actionForTurn.id = 0
+    printID = str(actionForTurn.id) if actionForTurn.id != 0 else ""
 
-    printID = str(actionForTurn.id) if int(actionForTurn.id) != -1 else ""
-    if actionForTurn.action == "BREW ":
-        castedBrews = castedBrews + 1
-        justCastedBrew = True
+    print(actionForTurn.action + str(printID) + " targetting " + str(selectedBrew.id))
 
-    print(actionForTurn.action + str(printID) + " Going for you potion " + str(selectedBrew.id))
+    castedBrews = castedBrews + 1
+    # print("Spell List 78 :" + str(casts[0].castable), file=sys.stderr, flush=True)
+    # print("Spell List 79 :" + str(casts[1].castable), file=sys.stderr, flush=True)
+    # print("Spell List 80 :" + str(casts[2].castable), file=sys.stderr, flush=True)
+    # print("Spell List 81 :" + str(casts[3].castable), file=sys.stderr, flush=True)
+
+    # in the first league: BREW <id> | WAIT; later: BREW <id> | CAST <id> [<times>] | LEARN <id> | REST | WAIT
